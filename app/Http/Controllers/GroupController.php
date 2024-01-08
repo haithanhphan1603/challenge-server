@@ -4,17 +4,21 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Group;
-use Exception;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
-class GroupController extends Controller
+class GroupController extends BaseController
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $groups = Group::with('users')->get();
-            return response()->json($groups);
-        } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            $queryColumn = $request->query("sort", "name");
+            $queryDirection = $request->query("order", "asc");
+            $groups = Group::orderBy($queryColumn, $queryDirection)->get();
+
+            return $this->sendResponse($groups->toArray(), 'Groups fetched successfully.');
+        } catch (\Exception $e) {
+            return $this->sendError('Error fetching groups: ' . $e->getMessage());
         }
     }
 
@@ -27,12 +31,11 @@ class GroupController extends Controller
 
             $group = Group::create($request->all());
 
-            return response()->json([
-                'message' => 'Group created successfully',
-                'group' => $group
-            ], 201);
-        } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return $this->sendResponse($group->toArray(), 'Group created successfully.');
+        } catch (ValidationException $e) {
+            return $this->sendError('Validation Error.', $e->errors());
+        } catch (\Exception $e) {
+            return $this->sendError('Error creating group: ' . $e->getMessage());
         }
     }
 
@@ -40,9 +43,12 @@ class GroupController extends Controller
     {
         try {
             $group = Group::with('users')->findOrFail($id);
-            return response()->json($group);
-        } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+
+            return $this->sendResponse($group->toArray(), 'Group fetched successfully.');
+        } catch (ModelNotFoundException $e) {
+            return $this->sendError('Group not found', [], 404);
+        } catch (\Exception $e) {
+            return $this->sendError('Error fetching group: ' . $e->getMessage());
         }
     }
 
@@ -56,12 +62,13 @@ class GroupController extends Controller
             $group = Group::findOrFail($id);
             $group->update($request->all());
 
-            return response()->json([
-                'message' => 'Group updated successfully',
-                'group' => $group
-            ]);
-        } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return $this->sendResponse($group->toArray(), 'Group updated successfully.');
+        } catch (ModelNotFoundException $e) {
+            return $this->sendError('Group not found', [], 404);
+        } catch (ValidationException $e) {
+            return $this->sendError('Validation Error.', $e->errors());
+        } catch (\Exception $e) {
+            return $this->sendError('Error updating group: ' . $e->getMessage());
         }
     }
 
@@ -71,11 +78,20 @@ class GroupController extends Controller
             $group = Group::findOrFail($id);
             $group->delete();
 
-            return response()->json([
-                'message' => 'Group deleted successfully'
-            ]);
-        } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return $this->sendResponse([], 'Group deleted successfully.');
+        } catch (ModelNotFoundException $e) {
+            return $this->sendError('Group not found', [], 404);
+        } catch (\Exception $e) {
+            return $this->sendError('Error deleting group: ' . $e->getMessage());
         }
     }
+     public function search(Request $request) {
+     try {
+        $search = $request->query('search');
+        $groups = Group::where('name', 'LIKE', "%{$search}%")->get();
+        return $this->sendResponse($groups->toArray(), 'Groups fetched successfully.');
+     } catch (\Exception $e) {
+        return $this->sendError('Error fetching Groups: ' . $e->getMessage());
+    }
+}
 }

@@ -26,6 +26,9 @@ Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 });
 
+Route::get('/groups/search', [GroupController::class, 'search']);
+Route::get('/users/search', [UserController::class, 'search']);
 
 Route::apiResource('users', UserController::class);
 Route::apiResource('groups', GroupController::class);
+

@@ -5,16 +5,20 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\ValidationException;
 
-class UserController extends Controller
+class UserController extends BaseController
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $users = User::all();
-            return response()->json($users);
+            $sortColumn = $request->query("sort","name");
+            $sortDirection = $request->query("order","asc");
+            $users = User::orderBy($sortColumn, $sortDirection)->get();
+
+            return $this->sendResponse($users->toArray(), 'Users fetched successfully.');
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error fetching users: ' . $e->getMessage()], 500);
+            return $this->sendError('Error fetching users: ' . $e->getMessage());
         }
     }
 
@@ -31,12 +35,11 @@ class UserController extends Controller
 
             $user = User::create($request->all());
 
-            return response()->json([
-                'message' => 'User created successfully',
-                'user' => $user
-            ], 201);
+            return $this->sendResponse($user->toArray(), 'User created successfully.');
+        } catch (ValidationException $e) {
+            return $this->sendError('Validation Error.', $e->errors());
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error creating user: ' . $e->getMessage()], 500);
+            return $this->sendError('Error creating user: ' . $e->getMessage());
         }
     }
 
@@ -44,11 +47,11 @@ class UserController extends Controller
     {
         try {
             $user = User::findOrFail($id);
-            return response()->json($user);
+            return $this->sendResponse($user->toArray(), 'User fetched successfully.');
         } catch (ModelNotFoundException $e) {
-            return response()->json(['message' => 'User not found'], 404);
+            return $this->sendError('User not found', [], 404);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error fetching user: ' . $e->getMessage()], 500);
+            return $this->sendError('Error fetching user: ' . $e->getMessage());
         }
     }
 
@@ -65,14 +68,13 @@ class UserController extends Controller
             $user = User::findOrFail($id);
             $user->update($request->all());
 
-            return response()->json([
-                'message' => 'User updated successfully',
-                'user' => $user
-            ]);
+            return $this->sendResponse($user->toArray(), 'User updated successfully.');
         } catch (ModelNotFoundException $e) {
-            return response()->json(['message' => 'User not found'], 404);
+            return $this->sendError('User not found', [], 404);
+        } catch (ValidationException $e) {
+            return $this->sendError('Validation Error.', $e->errors());
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error updating user: ' . $e->getMessage()], 500);
+            return $this->sendError('Error updating user: ' . $e->getMessage());
         }
     }
 
@@ -82,13 +84,21 @@ class UserController extends Controller
             $user = User::findOrFail($id);
             $user->delete();
 
-            return response()->json([
-                'message' => 'User deleted successfully'
-            ]);
+            return $this->sendResponse([], 'User deleted successfully.');
         } catch (ModelNotFoundException $e) {
-            return response()->json(['message' => 'User not found'], 404);
+            return $this->sendError('User not found', [], 404);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error deleting user: ' . $e->getMessage()], 500);
+            return $this->sendError('Error deleting user: ' . $e->getMessage());
         }
     }
+    
+    public function search(Request $request) {
+     try {
+        $search = $request->query('search');
+        $users = User::where('name', 'LIKE', "%{$search}%")->get();
+        return $this->sendResponse($users->toArray(), 'Users fetched successfully.');
+     } catch (\Exception $e) {
+        return $this->sendError('Error fetching users: ' . $e->getMessage());
+    }
+}
 }
