@@ -4,60 +4,91 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class UserController extends Controller
 {
     public function index()
     {
-        return User::all();
+        try {
+            $users = User::all();
+            return response()->json($users);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error fetching users: ' . $e->getMessage()], 500);
+        }
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
-            'email' => 'required',
-            'password' => 'required',
-            'age' => 'required|integer',
-            'image' => 'required|string',
-        ]);
+        try {
+            $request->validate([
+                'name' => 'required',
+                'email' => 'required|email|unique:users',
+                'age' => 'required|integer',
+                'image' => 'required|string',
+                'group_id' => 'required|exists:groups,id', // ensure the group exists
+            ]);
 
-  
+            $user = User::create($request->all());
 
-        $user = User::create($request->all());
-        $user->save();
-
-        return response()->json($user, 201);
+            return response()->json([
+                'message' => 'User created successfully',
+                'user' => $user
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error creating user: ' . $e->getMessage()], 500);
+        }
     }
 
-    public function show(User $user)
+    public function show($id)
     {
-        return $user;
+        try {
+            $user = User::findOrFail($id);
+            return response()->json($user);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'User not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error fetching user: ' . $e->getMessage()], 500);
+        }
     }
 
-    public function update(Request $request, User $user)
+    public function update(Request $request, $id)
     {
         try {
             $request->validate([
                 'name' => 'required',
-                'email' => 'required',
+                'email' => 'required|email|unique:users,email,'.$id,
                 'age' => 'required|integer',
-                'image' => 'required|string',
+                'image' => 'required|string'
             ]);
 
-       
+            $user = User::findOrFail($id);
             $user->update($request->all());
-            $user->save();
 
-            return response()->json($user, 200);
+            return response()->json([
+                'message' => 'User updated successfully',
+                'user' => $user
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'User not found'], 404);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 400);
+            return response()->json(['message' => 'Error updating user: ' . $e->getMessage()], 500);
         }
     }
 
-    public function destroy(User $user)
+    public function destroy($id)
     {
-        $user->delete();
-        return response()->json(null, 204);
+        try {
+            $user = User::findOrFail($id);
+            $user->delete();
+
+            return response()->json([
+                'message' => 'User deleted successfully'
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'User not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error deleting user: ' . $e->getMessage()], 500);
+        }
     }
 }

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\User;
+use App\Models\AuthUser;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 
@@ -13,13 +13,13 @@ class AuthController extends Controller
     {
         $this->validate($request, [
             'name' => 'required',
-            'email' => 'required|email|unique:users',
+            'email' => 'required|email|unique:auth_users',
             'password' => 'required|min:6',
             'age' => 'required|integer',
             'image' => 'required|string'
         ]);
 
-        $user = new User([
+        $user = new AuthUser([
             'name' => $request->input('name'),
             'email' => $request->input('email'),
             'password' => bcrypt($request->input('password')),
@@ -28,7 +28,7 @@ class AuthController extends Controller
         ]);
 
         $user->save();
-          $token = JWTAuth::fromUser($user);
+        $token = JWTAuth::fromUser($user);
 
         return response()->json(['message' => 'User created successfully','user' => $user,'token' => $token], 201);
     }
@@ -44,7 +44,7 @@ class AuthController extends Controller
         } catch (JWTException $e) {
             return response()->json(['error' => 'Could not create token'], 500);
         }
-           $user = JWTAuth::user();
+        $user = JWTAuth::user();
 
         return response()->json(['token' => $token,'user' => $user], 200);
     }
